@@ -52,6 +52,7 @@ RECAPTCHA_THRESHOLD=0.5 \
 | `LISTEN_ADDR` | Listen address | `:3000` |
 | `RECAPTCHA_SECRET_KEY` | Google reCAPTCHA secret key. Enables reCAPTCHA when set | empty (disabled) |
 | `RECAPTCHA_THRESHOLD` | reCAPTCHA v3 score threshold (0.0-1.0) | `0.5` |
+| `CORS_DOMAINS` | Comma-separated list of allowed origins (e.g. `https://a.com,https://b.com`). Use `*` to allow all | empty (disabled) |
 
 ## API
 

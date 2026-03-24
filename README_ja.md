@@ -52,6 +52,7 @@ RECAPTCHA_THRESHOLD=0.5 \
 | `LISTEN_ADDR` | リッスンアドレス | `:3000` |
 | `RECAPTCHA_SECRET_KEY` | Google reCAPTCHAのシークレットキー。設定するとreCAPTCHAが有効になる | 空（無効） |
 | `RECAPTCHA_THRESHOLD` | reCAPTCHA v3のスコア閾値（0.0〜1.0） | `0.5` |
+| `CORS_DOMAINS` | 許可するオリジンのカンマ区切りリスト（例: `https://a.com,https://b.com`）。`*` で全許可 | 空（無効） |
 
 ## API
 
