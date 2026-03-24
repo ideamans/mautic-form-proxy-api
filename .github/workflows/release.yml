@@ -40,5 +40,5 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            miyanaga/mautic-form-proxy-api:${{ steps.version.outputs.tag }}
-            miyanaga/mautic-form-proxy-api:latest
+            ideamans/mautic-form-proxy-api:${{ steps.version.outputs.tag }}
+            ideamans/mautic-form-proxy-api:latest
