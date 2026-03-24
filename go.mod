@@ -1,3 +1,3 @@
-module github.com/ideamans/mautic-form-api-proxy
+module github.com/ideamans/mautic-form-proxy-api
 
 go 1.24.7

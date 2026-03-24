@@ -6,9 +6,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/ideamans/mautic-form-api-proxy/client"
-	"github.com/ideamans/mautic-form-api-proxy/handler"
-	"github.com/ideamans/mautic-form-api-proxy/service"
+	"github.com/ideamans/mautic-form-proxy-api/client"
+	"github.com/ideamans/mautic-form-proxy-api/handler"
+	"github.com/ideamans/mautic-form-proxy-api/service"
 )
 
 type Config struct {
@@ -36,7 +36,7 @@ func loadConfig() Config {
 		cfg.MauticBaseURL = "https://mautic.ideamans.com"
 	}
 	if cfg.ListenAddr == "" {
-		cfg.ListenAddr = ":8080"
+		cfg.ListenAddr = ":3000"
 	}
 	return cfg
 }
@@ -59,7 +59,7 @@ func main() {
 	mux.HandleFunc("/api/form/", handler.NewFormSubmitHandler(svc))
 	mux.HandleFunc("/api/recaptcha/verify", handler.NewRecaptchaVerifyHandler(svc))
 
-	log.Printf("Starting mautic-form-api-proxy on %s (upstream: %s)", cfg.ListenAddr, cfg.MauticBaseURL)
+	log.Printf("Starting mautic-form-proxy-api on %s (upstream: %s)", cfg.ListenAddr, cfg.MauticBaseURL)
 	if cfg.RecaptchaSecretKey != "" {
 		log.Printf("reCAPTCHA: enabled (threshold: %.1f)", cfg.RecaptchaThreshold)
 	} else {

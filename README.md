@@ -1,4 +1,4 @@
-# mautic-form-api-proxy
+# mautic-form-proxy-api
 
 A proxy server that converts Mautic form submissions (multipart/form-data + redirect) into a JSON API.
 Optionally integrates Google reCAPTCHA v3 for bot detection.
@@ -22,7 +22,7 @@ This proxy handles the translation:
 ### Build
 
 ```bash
-go build -o mautic-form-api-proxy .
+go build -o mautic-form-proxy-api .
 ```
 
 ### Test
@@ -35,13 +35,13 @@ go test ./...
 
 ```bash
 # Minimal (without reCAPTCHA)
-MAUTIC_BASE_URL=https://mautic.example.com ./mautic-form-api-proxy
+MAUTIC_BASE_URL=https://mautic.example.com ./mautic-form-proxy-api
 
 # With reCAPTCHA enabled
 MAUTIC_BASE_URL=https://mautic.example.com \
 RECAPTCHA_SECRET_KEY=6Le... \
 RECAPTCHA_THRESHOLD=0.5 \
-./mautic-form-api-proxy
+./mautic-form-proxy-api
 ```
 
 ## Environment Variables
@@ -49,7 +49,7 @@ RECAPTCHA_THRESHOLD=0.5 \
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MAUTIC_BASE_URL` | Mautic server URL | `https://mautic.ideamans.com` |
-| `LISTEN_ADDR` | Listen address | `:8080` |
+| `LISTEN_ADDR` | Listen address | `:3000` |
 | `RECAPTCHA_SECRET_KEY` | Google reCAPTCHA secret key. Enables reCAPTCHA when set | empty (disabled) |
 | `RECAPTCHA_THRESHOLD` | reCAPTCHA v3 score threshold (0.0-1.0) | `0.5` |
 

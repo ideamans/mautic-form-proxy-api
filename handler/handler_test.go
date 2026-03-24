@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ideamans/mautic-form-api-proxy/service"
+	"github.com/ideamans/mautic-form-proxy-api/service"
 )
 
 // --- Mock FormService ---

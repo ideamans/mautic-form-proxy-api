@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/ideamans/mautic-form-api-proxy/service"
+	"github.com/ideamans/mautic-form-proxy-api/service"
 )
 
 func NewRecaptchaVerifyHandler(svc service.FormService) http.HandlerFunc {

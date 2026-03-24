@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ideamans/mautic-form-api-proxy/client"
+	"github.com/ideamans/mautic-form-proxy-api/client"
 )
 
 type RecaptchaVerifyResult struct {

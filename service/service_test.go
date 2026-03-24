@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ideamans/mautic-form-api-proxy/client"
+	"github.com/ideamans/mautic-form-proxy-api/client"
 )
 
 // --- Mocks ---

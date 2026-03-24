@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ideamans/mautic-form-api-proxy/service"
+	"github.com/ideamans/mautic-form-proxy-api/service"
 )
 
 // NewFormSubmitHandler handles POST /api/form/{formId}
