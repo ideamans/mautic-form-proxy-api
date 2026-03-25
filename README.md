@@ -151,6 +151,37 @@ Verifies a reCAPTCHA token independently. Useful for bot detection before showin
 }
 ```
 
+## Docker
+
+### docker run
+
+```bash
+docker run -d -p 3000:3000 \
+  -e MAUTIC_BASE_URL=https://mautic.example.com \
+  -e CORS_DOMAINS=https://www.example.com,https://app.example.com \
+  ideamans/mautic-form-proxy-api:latest
+```
+
+### docker compose
+
+```yaml
+services:
+  mautic-form-proxy:
+    image: ideamans/mautic-form-proxy-api:latest
+    ports:
+      - "3000:3000"
+    environment:
+      MAUTIC_BASE_URL: https://mautic.example.com
+      CORS_DOMAINS: "https://www.example.com,https://app.example.com"
+      # RECAPTCHA_SECRET_KEY: "6Le..."
+      # RECAPTCHA_THRESHOLD: "0.5"
+    restart: unless-stopped
+```
+
+```bash
+docker compose up -d
+```
+
 ## Architecture
 
 Three-layer dependency injection architecture. Each layer boundary is defined by interfaces, allowing unit tests to swap in mocks.
