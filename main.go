@@ -71,6 +71,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/form/", handler.NewFormSubmitHandler(svc))
 	mux.HandleFunc("/api/recaptcha/verify", handler.NewRecaptchaVerifyHandler(svc))
+	mux.HandleFunc("/.well-known/health", handler.NewHealthHandler())
 
 	// CORS middleware
 	var h http.Handler = mux

@@ -176,10 +176,25 @@ services:
       # RECAPTCHA_SECRET_KEY: "6Le..."
       # RECAPTCHA_THRESHOLD: "0.5"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/.well-known/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 ```
 
 ```bash
 docker compose up -d
+```
+
+## Health Check
+
+### GET /.well-known/health
+
+Returns `200 OK` when the server is running.
+
+```json
+{"status": "ok"}
 ```
 
 ## Architecture
