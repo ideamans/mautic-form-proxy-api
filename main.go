@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ type Config struct {
 	RecaptchaSecretKey string
 	RecaptchaThreshold float64
 	CORSDomains        map[string]bool
+	CORSAllowLocalhost bool
 }
 
 func loadConfig() Config {
@@ -38,12 +40,19 @@ func loadConfig() Config {
 		}
 	}
 
+	allowLocalhost := false
+	if v := os.Getenv("CORS_ALLOW_LOCALHOST"); v != "" {
+		v = strings.ToLower(v)
+		allowLocalhost = v == "true" || v == "1" || v == "yes"
+	}
+
 	cfg := Config{
 		MauticBaseURL:      os.Getenv("MAUTIC_BASE_URL"),
 		ListenAddr:         os.Getenv("LISTEN_ADDR"),
 		RecaptchaSecretKey: os.Getenv("RECAPTCHA_SECRET_KEY"),
 		RecaptchaThreshold: threshold,
 		CORSDomains:        corsDomains,
+		CORSAllowLocalhost: allowLocalhost,
 	}
 	if cfg.MauticBaseURL == "" {
 		cfg.MauticBaseURL = "https://mautic.ideamans.com"
@@ -75,8 +84,8 @@ func main() {
 
 	// CORS middleware
 	var h http.Handler = mux
-	if len(cfg.CORSDomains) > 0 {
-		h = handler.CORSMiddleware(cfg.CORSDomains, mux)
+	if len(cfg.CORSDomains) > 0 || cfg.CORSAllowLocalhost {
+		h = handler.CORSMiddleware(cfg.CORSDomains, cfg.CORSAllowLocalhost, mux)
 	}
 
 	log.Printf("Starting mautic-form-proxy-api on %s (upstream: %s)", cfg.ListenAddr, cfg.MauticBaseURL)
@@ -85,8 +94,15 @@ func main() {
 	} else {
 		log.Printf("reCAPTCHA: disabled")
 	}
-	if len(cfg.CORSDomains) > 0 {
-		log.Printf("CORS: %d domain(s)", len(cfg.CORSDomains))
+	if len(cfg.CORSDomains) > 0 || cfg.CORSAllowLocalhost {
+		parts := []string{}
+		if len(cfg.CORSDomains) > 0 {
+			parts = append(parts, fmt.Sprintf("%d domain(s)", len(cfg.CORSDomains)))
+		}
+		if cfg.CORSAllowLocalhost {
+			parts = append(parts, "localhost allowed")
+		}
+		log.Printf("CORS: %s", strings.Join(parts, ", "))
 	} else {
 		log.Printf("CORS: disabled")
 	}
