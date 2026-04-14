@@ -49,7 +49,7 @@ func (m *mockFormService) SubmitForm(ctx context.Context, formID int, fields map
 
 func TestFormSubmitHandler_MethodNotAllowed(t *testing.T) {
 	h := NewFormSubmitHandler(&mockFormService{})
-	req := httptest.NewRequest(http.MethodGet, "/api/form/15", nil)
+	req := httptest.NewRequest(http.MethodGet, "/_form-proxy-api/form/15", nil)
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -65,10 +65,10 @@ func TestFormSubmitHandler_InvalidFormID(t *testing.T) {
 		name string
 		path string
 	}{
-		{"non-numeric", "/api/form/abc"},
-		{"zero", "/api/form/0"},
-		{"negative", "/api/form/-1"},
-		{"empty", "/api/form/"},
+		{"non-numeric", "/_form-proxy-api/form/abc"},
+		{"zero", "/_form-proxy-api/form/0"},
+		{"negative", "/_form-proxy-api/form/-1"},
+		{"empty", "/_form-proxy-api/form/"},
 	}
 
 	for _, tt := range tests {
@@ -86,7 +86,7 @@ func TestFormSubmitHandler_InvalidFormID(t *testing.T) {
 
 func TestFormSubmitHandler_InvalidJSON(t *testing.T) {
 	h := NewFormSubmitHandler(&mockFormService{})
-	req := httptest.NewRequest(http.MethodPost, "/api/form/15", bytes.NewBufferString("not json"))
+	req := httptest.NewRequest(http.MethodPost, "/_form-proxy-api/form/15", bytes.NewBufferString("not json"))
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -104,7 +104,7 @@ func TestFormSubmitHandler_Success(t *testing.T) {
 		Fields:         map[string]string{"email": "a@b.com"},
 		RecaptchaToken: "tok",
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/form/15", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/_form-proxy-api/form/15", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -134,7 +134,7 @@ func TestFormSubmitHandler_ServiceValidationError(t *testing.T) {
 	}
 	h := NewFormSubmitHandler(mock)
 	body, _ := json.Marshal(FormSubmitRequest{Fields: map[string]string{}})
-	req := httptest.NewRequest(http.MethodPost, "/api/form/15", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/_form-proxy-api/form/15", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -149,7 +149,7 @@ func TestFormSubmitHandler_ServiceTransportError(t *testing.T) {
 	}
 	h := NewFormSubmitHandler(mock)
 	body, _ := json.Marshal(FormSubmitRequest{Fields: map[string]string{}})
-	req := httptest.NewRequest(http.MethodPost, "/api/form/15", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/_form-proxy-api/form/15", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -162,7 +162,7 @@ func TestFormSubmitHandler_ServiceTransportError(t *testing.T) {
 
 func TestRecaptchaVerifyHandler_MethodNotAllowed(t *testing.T) {
 	h := NewRecaptchaVerifyHandler(&mockFormService{recaptchaEnabled: true})
-	req := httptest.NewRequest(http.MethodGet, "/api/recaptcha/verify", nil)
+	req := httptest.NewRequest(http.MethodGet, "/_form-proxy-api/recaptcha/verify", nil)
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -173,7 +173,7 @@ func TestRecaptchaVerifyHandler_MethodNotAllowed(t *testing.T) {
 
 func TestRecaptchaVerifyHandler_NotConfigured(t *testing.T) {
 	h := NewRecaptchaVerifyHandler(&mockFormService{recaptchaEnabled: false})
-	req := httptest.NewRequest(http.MethodPost, "/api/recaptcha/verify", bytes.NewBufferString(`{"token":"x"}`))
+	req := httptest.NewRequest(http.MethodPost, "/_form-proxy-api/recaptcha/verify", bytes.NewBufferString(`{"token":"x"}`))
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -184,7 +184,7 @@ func TestRecaptchaVerifyHandler_NotConfigured(t *testing.T) {
 
 func TestRecaptchaVerifyHandler_InvalidJSON(t *testing.T) {
 	h := NewRecaptchaVerifyHandler(&mockFormService{recaptchaEnabled: true})
-	req := httptest.NewRequest(http.MethodPost, "/api/recaptcha/verify", bytes.NewBufferString("bad"))
+	req := httptest.NewRequest(http.MethodPost, "/_form-proxy-api/recaptcha/verify", bytes.NewBufferString("bad"))
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -200,7 +200,7 @@ func TestRecaptchaVerifyHandler_Success(t *testing.T) {
 	}
 	h := NewRecaptchaVerifyHandler(mock)
 	body, _ := json.Marshal(RecaptchaVerifyRequest{Token: "tok"})
-	req := httptest.NewRequest(http.MethodPost, "/api/recaptcha/verify", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/_form-proxy-api/recaptcha/verify", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -228,7 +228,7 @@ func TestRecaptchaVerifyHandler_Failure(t *testing.T) {
 	}
 	h := NewRecaptchaVerifyHandler(mock)
 	body, _ := json.Marshal(RecaptchaVerifyRequest{Token: "tok"})
-	req := httptest.NewRequest(http.MethodPost, "/api/recaptcha/verify", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/_form-proxy-api/recaptcha/verify", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
 	h(w, req)
 
@@ -244,7 +244,7 @@ func TestRecaptchaVerifyHandler_TransportError(t *testing.T) {
 	}
 	h := NewRecaptchaVerifyHandler(mock)
 	body, _ := json.Marshal(RecaptchaVerifyRequest{Token: "tok"})
-	req := httptest.NewRequest(http.MethodPost, "/api/recaptcha/verify", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPost, "/_form-proxy-api/recaptcha/verify", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
 	h(w, req)
 

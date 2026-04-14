@@ -1,17 +1,35 @@
 # mautic-form-proxy-api
 
-A proxy server that converts Mautic form submissions (multipart/form-data + redirect) into a JSON API.
-Optionally integrates Google reCAPTCHA v3 for bot detection.
+A reverse proxy that sits in front of a Mautic instance and exposes a small JSON
+form-submission API under `/_form-proxy-api/`. When a reverse-proxy upstream is
+configured, every other request is transparently proxied to it, so the container
+can be dropped in as:
+
+```
+https-endpoint  →  this container  →  Mautic (MAUTIC_UPSTREAM_URL)
+```
+
+`MAUTIC_BASE_URL` (the form-submission API target) and `MAUTIC_UPSTREAM_URL` (the
+reverse-proxy destination) are intentionally separate. Typically `MAUTIC_UPSTREAM_URL`
+points at a **local** Mautic (e.g. `http://mautic:80` in the same Docker network),
+while `MAUTIC_BASE_URL` points at its public URL. Pointing both at the same public
+URL would loop back into this same proxy.
+
+Optionally integrates Google reCAPTCHA v3 for bot detection on the JSON API.
 
 ## How It Works
 
 Mautic form submissions use `multipart/form-data` POST and return results via 302 redirects.
-This proxy handles the translation:
+This proxy does two things:
 
-1. Receives a JSON POST from the client
-2. Converts it to `mauticform[...]` multipart/form-data and forwards it to Mautic
-3. Inspects the `Location` header for a `mauticError` query parameter (without following the redirect)
-4. Returns success or errors as JSON
+1. Exposes a JSON API under `/_form-proxy-api/` for form submission, reCAPTCHA verification, and health checking.
+   - Receives a JSON POST from the client
+   - Converts it to `mauticform[...]` multipart/form-data and forwards it to Mautic
+   - Inspects the `Location` header for a `mauticError` query parameter (without following the redirect)
+   - Returns success or errors as JSON
+2. Reverse-proxies **every other path** to `MAUTIC_UPSTREAM_URL` (when set). Tracking pixels, landing pages, assets, `mtracking.gif`, `/form/submit`, everything — the container is transparent for those requests. If `MAUTIC_UPSTREAM_URL` is not set, the reverse proxy is disabled and unknown paths return 404; in that case the container only serves the JSON API under `/_form-proxy-api/`.
+
+With the reverse proxy enabled, a single public hostname can serve both the Mautic site itself and the form-submission JSON API from the same origin, which keeps Mautic tracking cookies (`mautic_device_id` / `mtc_id`) first-party.
 
 ### Mautic Contact Identity
 
@@ -23,7 +41,7 @@ To preserve Mautic's anonymous visitor tracking across the proxy, the following 
 - `Referer`
 - `X-Forwarded-For` / `X-Real-IP` (the original client IP is appended)
 
-Without this, all submissions would appear to come from the proxy server itself, orphaning anonymous contacts and breaking attribution. On the client side, call `fetch` with `credentials: 'include'` so the Mautic cookies are actually sent (see the example below), and make sure the proxy is served from a hostname that can read those cookies.
+Without this, all submissions would appear to come from the proxy server itself, orphaning anonymous contacts and breaking attribution. Because the JSON API lives under the same hostname as the Mautic site (the reverse proxy passthrough), Mautic's tracking cookies are automatically first-party and get sent along with API requests without any cross-origin gymnastics.
 
 ## Setup
 
@@ -60,7 +78,8 @@ RECAPTCHA_THRESHOLD=0.5 \
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MAUTIC_BASE_URL` | Mautic server URL | `https://mautic.ideamans.com` |
+| `MAUTIC_BASE_URL` | Public Mautic server URL used as the target of the form-submission JSON API (`/form/submit`). This URL is what end users would also type into a browser | `https://mautic.ideamans.com` |
+| `MAUTIC_UPSTREAM_URL` | Reverse-proxy destination for every non-`/_form-proxy-api/` request. Should point at a **local** Mautic (e.g. `http://mautic:80`, a sibling container) — **not** back at the container's own public URL, which would loop. If unset, the reverse proxy is disabled and non-API paths return 404 | empty (disabled) |
 | `LISTEN_ADDR` | Listen address | `:3000` |
 | `RECAPTCHA_SECRET_KEY` | Google reCAPTCHA secret key. Enables reCAPTCHA when set | empty (disabled) |
 | `RECAPTCHA_THRESHOLD` | reCAPTCHA v3 score threshold (0.0-1.0) | `0.5` |
@@ -71,11 +90,13 @@ When CORS is enabled, `Access-Control-Allow-Credentials: true` is always sent so
 
 ## API
 
-### POST /api/form/{formId}
+All JSON API endpoints live under the `/_form-proxy-api/` path prefix. Any path that does **not** start with this prefix is reverse-proxied verbatim to `MAUTIC_UPSTREAM_URL` (or returns 404 if no upstream is configured).
+
+### POST /_form-proxy-api/form/{formId}
 
 Submits data to a Mautic form. Specify the Mautic form ID in the URL path.
 
-**Example:** `POST /api/form/15`
+**Example:** `POST /_form-proxy-api/form/15`
 
 ```json
 {
@@ -131,7 +152,7 @@ Submits data to a Mautic form. Specify the Mautic form ID in the URL path.
 }
 ```
 
-### POST /api/recaptcha/verify
+### POST /_form-proxy-api/recaptcha/verify
 
 Verifies a reCAPTCHA token independently. Useful for bot detection before showing a form.
 
@@ -173,6 +194,7 @@ Verifies a reCAPTCHA token independently. Useful for bot detection before showin
 ```bash
 docker run -d -p 3000:3000 \
   -e MAUTIC_BASE_URL=https://mautic.example.com \
+  -e MAUTIC_UPSTREAM_URL=http://mautic:80 \
   -e CORS_DOMAINS=https://www.example.com,https://app.example.com \
   ideamans/mautic-form-proxy-api:latest
 ```
@@ -187,12 +209,13 @@ services:
       - "3000:3000"
     environment:
       MAUTIC_BASE_URL: https://mautic.example.com
+      MAUTIC_UPSTREAM_URL: http://mautic:80 # sibling Mautic container on the Docker network
       CORS_DOMAINS: "https://www.example.com,https://app.example.com"
       # RECAPTCHA_SECRET_KEY: "6Le..."
       # RECAPTCHA_THRESHOLD: "0.5"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/.well-known/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/_form-proxy-api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -204,7 +227,7 @@ docker compose up -d
 
 ## Health Check
 
-### GET /.well-known/health
+### GET /_form-proxy-api/health
 
 Returns `200 OK` when the server is running.
 
@@ -219,10 +242,13 @@ Three-layer dependency injection architecture. Each layer boundary is defined by
 ```
 main.go           Wiring (env vars -> build implementations -> DI -> Listen)
   |
-  +-- handler/    Layer 3: HTTP handlers (JSON <-> Service calls)
-  |     +-- handler.go       Request/Response types, writeJSON
-  |     +-- form.go          POST /api/form/{formId}
-  |     +-- recaptcha.go     POST /api/recaptcha/verify
+  +-- handler/    Layer 3: HTTP handlers + reverse proxy
+  |     +-- handler.go       Request/Response types, path constants, writeJSON
+  |     +-- form.go          POST /_form-proxy-api/form/{formId}
+  |     +-- recaptcha.go     POST /_form-proxy-api/recaptcha/verify
+  |     +-- health.go        GET  /_form-proxy-api/health
+  |     +-- proxy.go         Reverse proxy to MAUTIC_UPSTREAM_URL for all other paths
+  |     +-- cors.go          CORS middleware (applied only to /_form-proxy-api/*)
   |
   +-- service/    Layer 2: Business logic (reCAPTCHA + Mautic orchestration)
   |     +-- service.go       FormService interface + implementation
@@ -263,7 +289,7 @@ type FormService interface {
 grecaptcha.ready(async () => {
   const token = await grecaptcha.execute('YOUR_SITE_KEY', { action: 'submit' })
 
-  const response = await fetch('/api/form/15', {
+  const response = await fetch('/_form-proxy-api/form/15', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include', // send Mautic tracking cookies
@@ -291,7 +317,7 @@ grecaptcha.ready(async () => {
 document.getElementById('show-form-btn').addEventListener('click', async () => {
   const token = await grecaptcha.execute('YOUR_SITE_KEY', { action: 'show_form' })
 
-  const response = await fetch('/api/recaptcha/verify', {
+  const response = await fetch('/_form-proxy-api/recaptcha/verify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token })

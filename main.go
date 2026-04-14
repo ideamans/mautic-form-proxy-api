@@ -15,6 +15,7 @@ import (
 
 type Config struct {
 	MauticBaseURL      string
+	MauticUpstreamURL  string
 	ListenAddr         string
 	RecaptchaSecretKey string
 	RecaptchaThreshold float64
@@ -48,6 +49,7 @@ func loadConfig() Config {
 
 	cfg := Config{
 		MauticBaseURL:      os.Getenv("MAUTIC_BASE_URL"),
+		MauticUpstreamURL:  os.Getenv("MAUTIC_UPSTREAM_URL"),
 		ListenAddr:         os.Getenv("LISTEN_ADDR"),
 		RecaptchaSecretKey: os.Getenv("RECAPTCHA_SECRET_KEY"),
 		RecaptchaThreshold: threshold,
@@ -76,19 +78,39 @@ func main() {
 	// Layer 2: service
 	svc := service.NewFormService(recaptchaVerifier, mauticSubmitter, cfg.RecaptchaThreshold)
 
-	// Layer 3: HTTP handlers
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/form/", handler.NewFormSubmitHandler(svc))
-	mux.HandleFunc("/api/recaptcha/verify", handler.NewRecaptchaVerifyHandler(svc))
-	mux.HandleFunc("/.well-known/health", handler.NewHealthHandler())
+	// Layer 3: HTTP handlers (API endpoints under /_form-proxy-api/)
+	apiMux := http.NewServeMux()
+	apiMux.HandleFunc(handler.FormSubmitPath, handler.NewFormSubmitHandler(svc))
+	apiMux.HandleFunc(handler.RecaptchaVerifyPath, handler.NewRecaptchaVerifyHandler(svc))
+	apiMux.HandleFunc(handler.HealthPath, handler.NewHealthHandler())
 
-	// CORS middleware
-	var h http.Handler = mux
+	var apiHandler http.Handler = apiMux
 	if len(cfg.CORSDomains) > 0 || cfg.CORSAllowLocalhost {
-		h = handler.CORSMiddleware(cfg.CORSDomains, cfg.CORSAllowLocalhost, mux)
+		apiHandler = handler.CORSMiddleware(cfg.CORSDomains, cfg.CORSAllowLocalhost, apiMux)
 	}
 
-	log.Printf("Starting mautic-form-proxy-api on %s (upstream: %s)", cfg.ListenAddr, cfg.MauticBaseURL)
+	topMux := http.NewServeMux()
+	topMux.Handle(handler.APIPathPrefix+"/", apiHandler)
+
+	// Reverse proxy every other path to the Mautic upstream, if configured.
+	// Intentionally separate from MAUTIC_BASE_URL so this container can sit in
+	// front of a Mautic instance on a different hostname (e.g. a localhost
+	// Mautic container) without creating an infinite loop.
+	if cfg.MauticUpstreamURL != "" {
+		upstreamProxy, err := handler.NewUpstreamReverseProxy(cfg.MauticUpstreamURL)
+		if err != nil {
+			log.Fatalf("failed to build upstream reverse proxy: %v", err)
+		}
+		topMux.Handle("/", upstreamProxy)
+	}
+	var h http.Handler = topMux
+
+	log.Printf("Starting mautic-form-proxy-api on %s (Mautic API target: %s)", cfg.ListenAddr, cfg.MauticBaseURL)
+	if cfg.MauticUpstreamURL != "" {
+		log.Printf("Reverse proxy: enabled (upstream: %s)", cfg.MauticUpstreamURL)
+	} else {
+		log.Printf("Reverse proxy: disabled (set MAUTIC_UPSTREAM_URL to enable)")
+	}
 	if cfg.RecaptchaSecretKey != "" {
 		log.Printf("reCAPTCHA: enabled (threshold: %.1f)", cfg.RecaptchaThreshold)
 	} else {

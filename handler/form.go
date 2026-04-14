@@ -42,7 +42,7 @@ func forwardHeadersFromRequest(r *http.Request) *client.ForwardHeaders {
 	}
 }
 
-// NewFormSubmitHandler handles POST /api/form/{formId}
+// NewFormSubmitHandler handles POST /_form-proxy-api/form/{formId}
 func NewFormSubmitHandler(svc service.FormService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -53,8 +53,7 @@ func NewFormSubmitHandler(svc service.FormService) http.HandlerFunc {
 			return
 		}
 
-		// Extract formId from URL path: /api/form/{formId}
-		path := strings.TrimPrefix(r.URL.Path, "/api/form/")
+		path := strings.TrimPrefix(r.URL.Path, FormSubmitPath)
 		formID, err := strconv.Atoi(path)
 		if err != nil || formID <= 0 {
 			writeJSON(w, http.StatusBadRequest, FormSubmitResponse{
