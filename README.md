@@ -13,6 +13,18 @@ This proxy handles the translation:
 3. Inspects the `Location` header for a `mauticError` query parameter (without following the redirect)
 4. Returns success or errors as JSON
 
+### Mautic Contact Identity
+
+To preserve Mautic's anonymous visitor tracking across the proxy, the following headers from the browser request are forwarded to Mautic's `/form/submit`:
+
+- `Cookie` (carries `mautic_device_id` / `mtc_id` so the submission attaches to the existing tracked contact)
+- `User-Agent`
+- `Accept-Language`
+- `Referer`
+- `X-Forwarded-For` / `X-Real-IP` (the original client IP is appended)
+
+Without this, all submissions would appear to come from the proxy server itself, orphaning anonymous contacts and breaking attribution. On the client side, call `fetch` with `credentials: 'include'` so the Mautic cookies are actually sent (see the example below), and make sure the proxy is served from a hostname that can read those cookies.
+
 ## Setup
 
 ### Requirements
@@ -53,6 +65,9 @@ RECAPTCHA_THRESHOLD=0.5 \
 | `RECAPTCHA_SECRET_KEY` | Google reCAPTCHA secret key. Enables reCAPTCHA when set | empty (disabled) |
 | `RECAPTCHA_THRESHOLD` | reCAPTCHA v3 score threshold (0.0-1.0) | `0.5` |
 | `CORS_DOMAINS` | Comma-separated list of allowed origins (e.g. `https://a.com,https://b.com`). Use `*` to allow all | empty (disabled) |
+| `CORS_ALLOW_LOCALHOST` | When `true`, allow any `http://localhost:<port>` / `http://127.0.0.1:<port>` origin (for local development) | `false` |
+
+When CORS is enabled, `Access-Control-Allow-Credentials: true` is always sent so that clients using `fetch(..., { credentials: 'include' })` can carry Mautic tracking cookies through the proxy.
 
 ## API
 
@@ -251,6 +266,7 @@ grecaptcha.ready(async () => {
   const response = await fetch('/api/form/15', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // send Mautic tracking cookies
     body: JSON.stringify({
       fields: {
         email: 'user@example.com',
