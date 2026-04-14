@@ -17,8 +17,19 @@ type MauticSubmitResult struct {
 	Errors  []string
 }
 
+// ForwardHeaders carries the subset of inbound request headers that should be
+// propagated to Mautic so that tracked anonymous contacts can be identified
+// at form submission time. All fields are optional; zero values are skipped.
+type ForwardHeaders struct {
+	Cookie         string
+	UserAgent      string
+	ClientIP       string
+	AcceptLanguage string
+	Referer        string
+}
+
 type MauticSubmitter interface {
-	Submit(ctx context.Context, formID int, fields map[string]string) (*MauticSubmitResult, error)
+	Submit(ctx context.Context, formID int, fields map[string]string, headers *ForwardHeaders) (*MauticSubmitResult, error)
 }
 
 type HTTPMauticSubmitter struct {
@@ -37,7 +48,7 @@ func NewHTTPMauticSubmitter(baseURL string) *HTTPMauticSubmitter {
 	}
 }
 
-func (s *HTTPMauticSubmitter) Submit(ctx context.Context, formID int, fields map[string]string) (*MauticSubmitResult, error) {
+func (s *HTTPMauticSubmitter) Submit(ctx context.Context, formID int, fields map[string]string, headers *ForwardHeaders) (*MauticSubmitResult, error) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
@@ -55,6 +66,25 @@ func (s *HTTPMauticSubmitter) Submit(ctx context.Context, formID int, fields map
 		return nil, fmt.Errorf("mautic: failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	if headers != nil {
+		if headers.Cookie != "" {
+			req.Header.Set("Cookie", headers.Cookie)
+		}
+		if headers.UserAgent != "" {
+			req.Header.Set("User-Agent", headers.UserAgent)
+		}
+		if headers.AcceptLanguage != "" {
+			req.Header.Set("Accept-Language", headers.AcceptLanguage)
+		}
+		if headers.Referer != "" {
+			req.Header.Set("Referer", headers.Referer)
+		}
+		if headers.ClientIP != "" {
+			req.Header.Set("X-Forwarded-For", headers.ClientIP)
+			req.Header.Set("X-Real-IP", headers.ClientIP)
+		}
+	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {

@@ -2,12 +2,45 @@ package handler
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/ideamans/mautic-form-proxy-api/client"
 	"github.com/ideamans/mautic-form-proxy-api/service"
 )
+
+// clientIPFromRequest returns the best-effort originating client IP, preferring
+// the leftmost entry of X-Forwarded-For (populated by an upstream proxy such as
+// nginx) and falling back to RemoteAddr.
+func clientIPFromRequest(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		ip := strings.TrimSpace(parts[0])
+		if ip != "" {
+			return ip
+		}
+	}
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+func forwardHeadersFromRequest(r *http.Request) *client.ForwardHeaders {
+	return &client.ForwardHeaders{
+		Cookie:         r.Header.Get("Cookie"),
+		UserAgent:      r.Header.Get("User-Agent"),
+		AcceptLanguage: r.Header.Get("Accept-Language"),
+		Referer:        r.Header.Get("Referer"),
+		ClientIP:       clientIPFromRequest(r),
+	}
+}
 
 // NewFormSubmitHandler handles POST /api/form/{formId}
 func NewFormSubmitHandler(svc service.FormService) http.HandlerFunc {
@@ -40,7 +73,7 @@ func NewFormSubmitHandler(svc service.FormService) http.HandlerFunc {
 			return
 		}
 
-		result, err := svc.SubmitForm(r.Context(), formID, req.Fields, req.RecaptchaToken)
+		result, err := svc.SubmitForm(r.Context(), formID, req.Fields, req.RecaptchaToken, forwardHeadersFromRequest(r))
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, FormSubmitResponse{
 				Success: false,

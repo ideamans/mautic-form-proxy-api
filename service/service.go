@@ -20,7 +20,7 @@ type FormSubmitResult struct {
 
 type FormService interface {
 	VerifyRecaptcha(ctx context.Context, token string) (*RecaptchaVerifyResult, error)
-	SubmitForm(ctx context.Context, formID int, fields map[string]string, recaptchaToken string) (*FormSubmitResult, error)
+	SubmitForm(ctx context.Context, formID int, fields map[string]string, recaptchaToken string, headers *client.ForwardHeaders) (*FormSubmitResult, error)
 	RecaptchaEnabled() bool
 }
 
@@ -80,7 +80,7 @@ func (s *formService) VerifyRecaptcha(ctx context.Context, token string) (*Recap
 	}, nil
 }
 
-func (s *formService) SubmitForm(ctx context.Context, formID int, fields map[string]string, recaptchaToken string) (*FormSubmitResult, error) {
+func (s *formService) SubmitForm(ctx context.Context, formID int, fields map[string]string, recaptchaToken string, headers *client.ForwardHeaders) (*FormSubmitResult, error) {
 	if s.recaptcha != nil {
 		if recaptchaToken == "" {
 			return &FormSubmitResult{
@@ -109,7 +109,7 @@ func (s *formService) SubmitForm(ctx context.Context, formID int, fields map[str
 		}
 	}
 
-	mauticResult, err := s.mautic.Submit(ctx, formID, fields)
+	mauticResult, err := s.mautic.Submit(ctx, formID, fields, headers)
 	if err != nil {
 		return nil, err
 	}

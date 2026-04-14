@@ -20,11 +20,13 @@ func (m *mockRecaptchaVerifier) Verify(ctx context.Context, token string) (*clie
 }
 
 type mockMauticSubmitter struct {
-	result *client.MauticSubmitResult
-	err    error
+	result      *client.MauticSubmitResult
+	err         error
+	lastHeaders *client.ForwardHeaders
 }
 
-func (m *mockMauticSubmitter) Submit(ctx context.Context, formID int, fields map[string]string) (*client.MauticSubmitResult, error) {
+func (m *mockMauticSubmitter) Submit(ctx context.Context, formID int, fields map[string]string, headers *client.ForwardHeaders) (*client.MauticSubmitResult, error) {
+	m.lastHeaders = headers
 	return m.result, m.err
 }
 
@@ -115,7 +117,7 @@ func TestSubmitForm_NoRecaptcha_Success(t *testing.T) {
 		result: &client.MauticSubmitResult{Success: true},
 	}, 0.5)
 
-	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{"email": "a@b.com"}, "")
+	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{"email": "a@b.com"}, "", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -127,7 +129,7 @@ func TestSubmitForm_NoRecaptcha_Success(t *testing.T) {
 func TestSubmitForm_RecaptchaEnabled_NoToken(t *testing.T) {
 	svc := NewFormService(&mockRecaptchaVerifier{}, &mockMauticSubmitter{}, 0.5)
 
-	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "")
+	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -143,7 +145,7 @@ func TestSubmitForm_RecaptchaEnabled_ValidToken(t *testing.T) {
 		result: &client.MauticSubmitResult{Success: true},
 	}, 0.5)
 
-	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{"email": "a@b.com"}, "valid-token")
+	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{"email": "a@b.com"}, "valid-token", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -159,7 +161,7 @@ func TestSubmitForm_RecaptchaEnabled_LowScore(t *testing.T) {
 		result: &client.MauticSubmitResult{Success: true},
 	}, 0.5)
 
-	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "token")
+	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "token", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -175,7 +177,7 @@ func TestSubmitForm_RecaptchaEnabled_VerifyFails(t *testing.T) {
 		result: &client.MauticSubmitResult{Success: true},
 	}, 0.5)
 
-	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "bad-token")
+	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "bad-token", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -192,7 +194,7 @@ func TestSubmitForm_MauticValidationError(t *testing.T) {
 		},
 	}, 0.5)
 
-	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "")
+	result, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -209,7 +211,7 @@ func TestSubmitForm_MauticTransportError(t *testing.T) {
 		err: fmt.Errorf("connection refused"),
 	}, 0.5)
 
-	_, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "")
+	_, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "", nil)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -220,7 +222,7 @@ func TestSubmitForm_RecaptchaTransportError(t *testing.T) {
 		err: fmt.Errorf("network error"),
 	}, &mockMauticSubmitter{}, 0.5)
 
-	_, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "token")
+	_, err := svc.SubmitForm(context.Background(), 15, map[string]string{}, "token", nil)
 	if err == nil {
 		t.Error("expected error")
 	}

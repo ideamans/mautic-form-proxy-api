@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/ideamans/mautic-form-proxy-api/client"
 	"github.com/ideamans/mautic-form-proxy-api/service"
 )
 
@@ -23,6 +24,7 @@ type mockFormService struct {
 	lastSubmitFormID    int
 	lastSubmitFields    map[string]string
 	lastSubmitRecaptcha string
+	lastSubmitHeaders   *client.ForwardHeaders
 	lastVerifyToken     string
 }
 
@@ -35,10 +37,11 @@ func (m *mockFormService) VerifyRecaptcha(ctx context.Context, token string) (*s
 	return m.verifyResult, m.verifyErr
 }
 
-func (m *mockFormService) SubmitForm(ctx context.Context, formID int, fields map[string]string, recaptchaToken string) (*service.FormSubmitResult, error) {
+func (m *mockFormService) SubmitForm(ctx context.Context, formID int, fields map[string]string, recaptchaToken string, headers *client.ForwardHeaders) (*service.FormSubmitResult, error) {
 	m.lastSubmitFormID = formID
 	m.lastSubmitFields = fields
 	m.lastSubmitRecaptcha = recaptchaToken
+	m.lastSubmitHeaders = headers
 	return m.submitResult, m.submitErr
 }
 
